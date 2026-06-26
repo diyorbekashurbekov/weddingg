@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL тілі | Info__ubt — ҰБТ Дайындық Слайдтары</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Syne:wght@700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* =============================================
+           DESIGN TOKENS — Cyberpunk SQL Theme
+        ============================================= */
+        :root {
+            --bg: #050510;
+            --bg-card: rgba(14, 14, 35, 0.9);
+            --bg-code: rgba(0, 0, 0, 0.7);
+            --primary: #1E1B4B;
+            --secondary: #312E81;
+            --accent: #4338CA;
+            --accent-orange: #F97316;
+            --neon-cyan: #00d4ff;
+            --neon-green: #00ff88;
+            --neon-purple: #b855ff;
+            --neon-orange: #ff6a00;
+            --text: #F8FAFC;
+            --text-muted: #94a3b8;
+            --border: rgba(67, 56, 202, 0.4);
+            --font-display: 'Syne', sans-serif;
+            --font-body: 'Outfit', sans-serif;
+            --font-code: 'Fira Code', monospace;
+            --slide-transition: 0.65s cubic-bezier(0.77, 0, 0.18, 1);
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font-body);
+            cursor: default;
+            user-select: none;
+        }
+        /* =============================================
+           BACKGROUND EFFECTS
+        ============================================= */
+        #bg-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .scanlines {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0, 0, 0, 0.15) 2px,
+                    rgba(0, 0, 0, 0.15) 4px
+            );
+        }
+        .noise-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            background-size: 200px 200px;
+        }
+        /* =============================================
+           SLIDESHOW CONTAINER
+        ============================================= */
+        #slideshow {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            overflow: hidden;
+        }
+        /* =============================================
+           SLIDES
+        ============================================= */
+        .slide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px 80px;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(100%);
+            transition: none;
+        }
+        .slide.active {
+            opacity: 1;
+            pointer-events: all;
+            transform: translateX(0);
+        }
+        .slide.exit-left {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+        /* =============================================
+           SLIDE NAVIGATION
+        ============================================= */
+        #nav {
+            position: fixed;
+            bottom: 36px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .nav-dots {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .dot.active {
+            background: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+            width: 24px;
+            border-radius: 4px;
+        }
+        .nav-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            color: var(--text);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-size: 18px;
+        }
+        .nav-btn:hover {
+            background: rgba(67, 56, 202, 0.3);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+            color: var(--neon-cyan);
+        }
+        .nav-btn:disabled {
+            opacity: 0.2;
+            cursor: not-allowed;
+        }
+        /* =============================================
+           TOP BAR
+        ============================================= */
+        #topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 16px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(5, 5, 16, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+        }
+        .brand {
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .slide-counter {
+            font-family: var(--font-code);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+        .slide-counter span {
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+        .topic-badge {
+            background: rgba(67, 56, 202, 0.2);
+            border: 1px solid var(--accent);
+            color: var(--neon-cyan);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+        /* =============================================
+           COMMON SLIDE ELEMENTS
+        ============================================= */
+        .slide-tag {
+            font-family: var(--font-code);
+            font-size: 0.75rem;
+            color: var(--neon-cyan);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .slide-tag::before {
+            content: '';
+            display: block;
+            width: 24px;
+            height: 2px;
+            background: var(--neon-cyan);
+            box-shadow: 0 0 6px var(--neon-cyan);
+        }
+        .slide-title {
+            font-family: var(--font-display);
+            font-size: clamp(2.2rem, 5vw, 4rem);
+            font-weight: 800;
+            line-height: 1.05;
+            margin-bottom: 24px;
+            letter-spacing: -0.02em;
+        }
+        .neon-text-cyan {
+            color: var(--neon-cyan);
+            text-shadow: 0 0 30px rgba(0, 212, 255, 0.6), 0 0 60px rgba(0, 212, 255, 0.3);
+        }
+        .neon-text-purple {
+            color: var(--neon-purple);
+            text-shadow: 0 0 30px rgba(184, 85, 255, 0.6);
+        }
+        .neon-text-green {
+            color: var(--neon-green);
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+        .neon-text-orange {
+            color: var(--accent-orange);
+            text-shadow: 0 0 20px rgba(249, 115, 22, 0.5);
+        }
+        .slide-desc {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            line-height: 1.7;
+            max-width: 720px;
+        }
+        /* =============================================
+           GLASS CARD
+        ============================================= */
+        .glass-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px 32px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.03) inset;
+            position: relative;
+            overflow: hidden;
+        }
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.3), transparent);
+        }
+        /* =============================================
+           CODE BLOCK
+        ============================================= */
+        .code-block {
+            background: var(--bg-code);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px 24px;
+            font-family: var(--font-code);
+            font-size: 0.92rem;
+            line-height: 1.7;
+            position: relative;
+            overflow: hidden;
+        }
+        .code-block::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--neon-cyan), var(--neon-purple));
+        }
+        .code-label {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            font-family: var(--font-code);
+            font-size: 0.65rem;
+            color: rgba(0, 212, 255, 0.5);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        /* SQL Syntax Highlighting */
+        .kw { color: var(--neon-purple); font-weight: 600; }
+        .fn { color: var(--neon-cyan); }
+        .str { color: var(--neon-green); }
+        .num { color: var(--accent-orange); }
+        .cmt { color: #64748b; font-style: italic; }
+        .tbl { color: #fbbf24; }
+        .op { color: #f472b6; }
+        .result-row { color: var(--neon-green); }
+        /* =============================================
+           TABLE STYLES
+        ============================================= */
+        .sql-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-code);
+            font-size: 0.82rem;
+        }
+        .sql-table th {
+            background: rgba(67, 56, 202, 0.3);
+            color: var(--neon-cyan);
+            padding: 10px 16px;
+            text-align: left;
+            border: 1px solid rgba(67, 56, 202, 0.4);
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+        }
+        .sql-table td {
+            padding: 9px 16px;
+            border: 1px solid rgba(255,255,255,0.05);
+            color: var(--text-muted);
+        }
+        .sql-table tr:nth-child(even) td {
+            background: rgba(255,255,255,0.02);
+        }
+        .sql-table tr:hover td {
+            background: rgba(0, 212, 255, 0.05);
+            color: var(--text);
+        }
+        .pk { color: var(--accent-orange); font-weight: 600; }
+        .fk { color: var(--neon-purple); font-weight: 600; }
+        /* =============================================
+           INFO CARDS GRID
+        ============================================= */
+        .cards-grid {
+            display: grid;
+            gap: 16px;
+        }
+        .cards-grid-2 { grid-template-columns: 1fr 1fr; }
+        .cards-grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .cards-grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .info-card {
+            background: rgba(14, 14, 35, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: border-color 0.3s ease, transform 0.3s ease;
+        }
+        .info-card:hover {
+            border-color: var(--neon-cyan);
+            transform: translateY(-2px);
+        }
+        .info-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            font-size: 1.3rem;
+        }
+        .info-card h4 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+        .info-card p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+        /* =============================================
+           LIST STYLES
+        ============================================= */
+        .fancy-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .fancy-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: var(--text-muted);
+        }
+        .fancy-list li .bullet {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            margin-top: 1px;
+            font-family: var(--font-code);
+        }
+        .fancy-list li strong {
+            color: var(--text);
+        }
+        /* =============================================
+           BADGE / PILL
+        ============================================= */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            font-family: var(--font-code);
+            letter-spacing: 0.05em;
+        }
+        .badge-cyan { background: rgba(0, 212, 255, 0.12); color: var(--neon-cyan); border: 1px solid rgba(0, 212, 255, 0.3); }
+        .badge-purple { background: rgba(184, 85, 255, 0.12); color: var(--neon-purple); border: 1px solid rgba(184, 85, 255, 0.3); }
+        .badge-green { background: rgba(0, 255, 136, 0.1); color: var(--neon-green); border: 1px solid rgba(0, 255, 136, 0.25); }
+        .badge-orange { background: rgba(249, 115, 22, 0.12); color: var(--accent-orange); border: 1px solid rgba(249, 115, 22, 0.3); }
+        /* =============================================
+           DIVIDER
+        ============================================= */
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+            margin: 20px 0;
+        }
+        /* =============================================
+           FLOW DIAGRAM
+        ============================================= */
+        .flow-diagram {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .flow-item {
+            background: rgba(14, 14, 35, 0.9);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 20px;
+            text-align: center;
+            min-width: 110px;
+        }
+        .flow-arrow {
+            color: var(--neon-cyan);
+            font-size: 1.4rem;
+            opacity: 0.6;
+        }
+        /* =============================================
+           COMPARISON TABLE
+        ============================================= */
+        .compare-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        /* =============================================
+           TITLE SLIDE SPECIFIC
+        ============================================= */
+        .title-slide {
+            text-align: center;
+            background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(67, 56, 202, 0.15) 0%, transparent 70%);
+        }
+        .giant-tag {
+            font-family: var(--font-code);
+            font-size: clamp(6rem, 18vw, 14rem);
+            font-weight: 600;
+            line-height: 1;
+            letter-spacing: -0.04em;
+            color: transparent;
+            -webkit-text-stroke: 1px rgba(0, 212, 255, 0.2);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: -1;
+            user-select: none;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        /* =============================================
+           PROGRESS BAR
+        ============================================= */
+        #progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+            z-index: 200;
+            transition: width 0.4s ease;
+            box-shadow: 0 0 12px var(--neon-cyan);
+        }
+        /* =============================================
+           KEYBOARD HINT
+        ============================================= */
+        #kbd-hint {
+            position: fixed;
+            bottom: 36px;
+            right: 40px;
+            font-family: var(--font-code);
+            font-size: 0.68rem;
+            color: rgba(255,255,255,0.2);
+            z-index: 100;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .kbd {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 4px;
+            padding: 2px 7px;
+            font-size: 0.65rem;
+        }
+        /* =============================================
+           HIGHLIGHT BOX
+        ============================================= */
+        .highlight-box {
+            background: rgba(0, 212, 255, 0.05);
+            border-left: 3px solid var(--neon-cyan);
+            border-radius: 0 8px 8px 0;
+            padding: 14px 18px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        .highlight-box.warning {
+            background: rgba(249, 115, 22, 0.06);
+            border-left-color: var(--accent-orange);
+        }
+        .highlight-box.success {
+            background: rgba(0, 255, 136, 0.05);
+            border-left-color: var(--neon-green);
+        }
+        /* =============================================
+           SLIDE-SPECIFIC LAYOUT HELPERS
+        ============================================= */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+            width: 100%;
+            max-width: 1100px;
+        }
+        .two-col-65 {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 28px;
+            width: 100%;
+            max-width: 1100px;
+        }
+        .slide-content {
+            width: 100%;
+            max-width: 1100px;
+        }
+        /* Fullscreen slide layout */
+        .slide-header {
+            margin-bottom: 28px;
+        }
+        /* =============================================
+           NUMBER HIGHLIGHT
+        ============================================= */
+        .big-number {
+            font-family: var(--font-code);
+            font-size: 3rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        /* =============================================
+           ANIMATION CLASSES
+        ============================================= */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInLeft {
+            from { opacity: 0; transform: translateX(-24px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes glowPulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        @keyframes typewriter {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .anim-fade-up { animation: fadeInUp 0.6s ease forwards; }
+        .anim-fade-left { animation: fadeInLeft 0.5s ease forwards; }
+        .delay-1 { animation-delay: 0.1s; opacity: 0; }
+        .delay-2 { animation-delay: 0.2s; opacity: 0; }
+        .delay-3 { animation-delay: 0.3s; opacity: 0; }
+        .delay-4 { animation-delay: 0.4s; opacity: 0; }
+        .delay-5 { animation-delay: 0.5s; opacity: 0; }
+        .delay-6 { animation-delay: 0.6s; opacity: 0; }
+        .delay-7 { animation-delay: 0.7s; opacity: 0; }
+        .delay-8 { animation-delay: 0.8s; opacity: 0; }
+        /* =============================================
+           RESPONSIVE
+        ============================================= */
+        @media (max-width: 900px) {
+            .slide { padding: 50px 24px 80px; }
+            .two-col, .two-col-65 { grid-template-columns: 1fr; gap: 16px; }
+            .cards-grid-3, .cards-grid-4 { grid-template-columns: 1fr 1fr; }
+            .slide-title { font-size: 2.2rem; }
+            #topbar { padding: 12px 20px; }
+            .giant-tag { font-size: 8rem; }
+        }
+    </style>
+</head>
+<body>
+<!-- Background canvas for particle grid -->
+<canvas id="bg-canvas"></canvas>
+<div class="scanlines"></div>
+<div class="noise-overlay"></div>
+<!-- Progress bar -->
+<div id="progress"></div>
+<!-- Top Bar -->
+<div id="topbar">
+    <div class="brand">INFO__UBT</div>
+    <div class="topic-badge">SQL ТІЛІ</div>
+    <div class="slide-counter"><span id="cur">1</span> / <span id="tot">10</span></div>
+</div>
+<!-- =============================================
+     SLIDESHOW
+============================================= -->
+<div id="slideshow">
+    <!-- ── SLIDE 1: Title ────────────────────────── -->
+    <div class="slide title-slide active" data-index="0">
+        <div class="giant-tag">SQL</div>
+        <div class="slide-tag anim-fade-up delay-1">ҰБТ Информатика — Деректер Қоры</div>
+        <h1 class="slide-title anim-fade-up delay-2">
+            <span class="neon-text-cyan">SQL</span> тілі<br>
+            <span style="font-size: 0.6em; color: var(--text-muted); font-weight: 300;">Structured Query Language</span>
+        </h1>
+        <p class="slide-desc anim-fade-up delay-3" style="text-align:center; max-width: 600px;">
+            Деректер қорымен жұмыс жасауға арналған стандартты тіл. Деректерді сұрату, өзгерту, қосу, жою — барлығын SQL арқылы орындаймыз.
+        </p>
+        <div style="margin-top: 36px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;" class="anim-fade-up delay-4">
+            <span class="badge badge-cyan">SELECT</span>
+            <span class="badge badge-purple">INSERT</span>
+            <span class="badge badge-orange">UPDATE</span>
+            <span class="badge badge-green">DELETE</span>
+            <span class="badge badge-cyan">JOIN</span>
+            <span class="badge badge-purple">WHERE</span>
+            <span class="badge badge-orange">GROUP BY</span>
+        </div>
+        <p style="margin-top: 48px; font-family: var(--font-code); font-size: 0.75rem; color: rgba(255,255,255,0.2);" class="anim-fade-up delay-5">
+            → кілтін немесе стрелкені басыңыз
+        </p>
+    </div>
+    <!-- ── SLIDE 2: SQL дегеніміз не? ───────────── -->
+    <div class="slide" data-index="1">
+        <div class="slide-content">
+            <div class="slide-header">
+                <div class="slide-tag anim-fade-up delay-1">Кіріспе</div>
+                <h2 class="slide-title anim-fade-up delay-2">SQL дегеніміз <span class="neon-text-cyan">не?</span></h2>
+            </div>
+            <div class="two-col">
+                <div>
+                    <ul class="fancy-list">
+                        <li class="anim-fade-up delay-2">
+                            <span class="bullet badge-cyan" style="background:rgba(0,212,255,0.12); color:var(--neon-cyan); font-family:var(--font-code); width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:0.7rem; font-weight:700;">01</span>
+                            <span><strong>SQL</strong> — Structured Query Language (Құрылымдалған Сұрату Тілі)</span>
+                        </li>
+                        <li class="anim-fade-up delay-3">
+                            <span class="bullet badge-purple" style="background:rgba(184,85,255,0.12); color:var(--neon-purple); font-family:var(--font-code); width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:0.7rem; font-weight:700;">02</span>
+                            <span>Реляциялық деректер қорымен (РДҚЖ) жұмыс жасауға арналған</span>
+                        </li>
+                        <li class="anim-fade-up delay-4">
+                            <span class="bullet badge-green" style="background:rgba(0,255,136,0.1); color:var(--neon-green); font-family:var(--font-code); width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:0.7rem; font-weight:700;">03</span>
+                            <span><strong>1974</strong> жылы IBM компаниясы жасаған, 1986 жылы ISO стандартына енгізілген</span>
+                        </li>
+                        <li class="anim-fade-up delay-5">
+                            <span class="bullet badge-orange" style="background:rgba(249,115,22,0.12); color:var(--accent-orange); font-family:var(--font-code); width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:0.7rem; font-weight:700;">04</span>
+                            <span>MySQL, PostgreSQL, MS SQL Server, Oracle — SQL қолданатын жүйелер</span>
+                        </li>
+                    </ul>
+                    <div class="divider" style="margin-top: 24px;"></div>
+                    <div class="highlight-box anim-fade-up delay-6">
+                        <strong style="color: var(--neon-cyan);">ҰБТ-дағы маңызы:</strong> SQL командалары тапсырмалары ҰБТ-да жиі кездеседі. SELECT, INSERT, UPDATE, DELETE операторларын жатқа білу керек.
+                    </div>
+                </div>
+                <div class="glass-card anim-fade-up delay-3" style="height: fit-content;">
+                    <div class="code-label">SQL</div>
+                    <div class="code-block">
+                        -- Деректерді іріктеу<br>
+                        <span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">Students</span>;<br><br>
+                        -- Жаңа жазба қосу<br>
+                        <span class="kw">INSERT INTO</span> <span class="tbl">Students</span><br>
+                        &nbsp;&nbsp;<span class="kw">VALUES</span> (<span class="num">5</span>, <span class="str">'Ғалым'</span>, <span class="num">17</span>);<br><br>
+                        -- Деректерді жаңарту<br>
+                        <span class="kw">UPDATE</span> <span class="tbl">Students</span><br>
+                        &nbsp;&nbsp;<span class="kw">SET</span> Age <span class="op">=</span> <span class="num">18</span><br>
+                        &nbsp;&nbsp;<span class="kw">WHERE</span> ID <span class="op">=</span> <span class="num">1</span>;<br><br>
+                        -- Жазбаны жою<br>
+                        <span class="kw">DELETE FROM</span> <span class="tbl">Students</span><br>
+                        &nbsp;&nbsp;<span class="kw">WHERE</span> ID <span class="op">=</span> <span class="num">3</span>;
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ── SLIDE 3: SQL Командалары Топтары ─────── -->
+    <div class="slide" data-index="2">
+        <div class="slide-content">
+            <div class="slide-header">
+                <div class="slide-tag anim-fade-up delay-1">Классификация</div>
+                <h2 class="slide-title anim-fade-up delay-2">SQL командалары <span class="neon-text-purple">топтары</span></h2>
+            </div>
+            <div class="cards-grid cards-grid-4 anim-fade-up delay-3">
+                <div class="info-card" style="border-color: rgba(0,212,255,0.3);">
+                    <div class="info-card-icon" style="background: rgba(0,212,255,0.1);">
+                        <span style="color: var(--neon-cyan); font-family: var(--font-code); font-weight: 700; font-size: 0.85rem;">DQL</span>
+                    </div>
+                    <h4 style="color: var(--neon-cyan);">DQL</h4>
+                    <p style="margin-bottom: 10px; font-size: 0.75rem; color: rgba(148,163,184,0.7);">Data Query Language</p>
+                    <p style="margin-bottom: 10px;"><strong style="color:var(--text);">Деректерді сұрату тілі</strong></p>
+                    <div style="margin-top: 10px;"><span class="badge badge-cyan">SELECT</span></div>
+                </div>
+                <div class="info-card" style="border-color: rgba(184,85,255,0.3);">
+                    <div class="info-card-icon" style="background: rgba(184,85,255,0.1);">
+                        <span style="color: var(--neon-purple); font-family: var(--font-code); font-weight: 700; font-size: 0.85rem;">DML</span>
+                    </div>
+                    <h4 style="color: var(--neon-purple);">DML</h4>
+                    <p style="margin-bottom: 10px; font-size: 0.75rem; color: rgba(148,163,184,0.7);">Data Manipulation Language</p>
+                    <p style="margin-bottom: 10px;"><strong style="color:var(--text);">Деректерді өзгерту тілі</strong></p>
+                    <div style="margin-top: 10px; display: flex; flex-wrap:wrap; gap: 6px;">
+                        <span class="badge badge-purple">INSERT</span>
+                        <span class="badge badge-purple">UPDATE</span>
+                        <span class="badge badge-purple">DELETE</span>
+                    </div>
+                </div>
+                <div class="info-card" style="border-color: rgba(249,115,22,0.3);">
+                    <div class="info-card-icon" style="background: rgba(249,115,22,0.1);">
+                        <span style="color: var(--accent-orange); font-family: var(--font-code); font-weight: 700; font-size: 0.85rem;">DDL</span>
+                    </div>
+                    <h4 style="color: var(--accent-orange);">DDL</h4>
+                    <p style="margin-bottom: 10px; font-size: 0.75rem; color: rgba(148,163,184,0.7);">Data Definition Language</p>
+                    <p style="margin-bottom: 10px;"><strong style="color:var(--text);">Деректерді анықтау тілі</strong></p>
+                    <div style="margin-top: 10px; display: flex; flex-wrap:wrap; gap: 6px;">
+                        <span class="badge badge-orange">CREATE</span>
+                        <span class="badge badge-orange">ALTER</span>
+                        <span class="badge badge-orange">DROP</span>
+                    </div>
+                </div>
+                <div class="info-card" style="border-color: rgba(0,255,136,0.3);">
+                    <div class="info-card-icon" style="background: rgba(0,255,136,0.1);">
+                        <span style="color: var(--neon-green); font-family: var(--font-code); font-weight: 700; font-size: 0.85rem;">DCL</span>
+                    </div>
+                    <h4 style="color: var(--neon-green);">DCL</h4>
+                    <p style="margin-bottom: 10px; font-size: 0.75rem; color: rgba(148,163,184,0.7);">Data Control Language</p>
+                    <p style="margin-bottom: 10px;"><strong style="color:var(--text);">Қол жеткізуді басқару тілі</strong></p>
+                    <div style="margin-top: 10px; display: flex; flex-wrap:wrap; gap: 6px;">
+                        <span class="badge badge-green">GRANT</span>
+                        <span class="badge badge-green">REVOKE</span>
+                    </div>
+                </div>
+            </div>
+            <div class="highlight-box anim-fade-up delay-5" style="margin-top: 20px;">
+                <strong style="color: var(--accent-orange);">ҰБТ үшін:</strong> Ең маңызды топтар — <strong>DQL</strong> (SELECT) және <strong>DML</strong> (INSERT, UPDATE, DELETE). Оларды жаттаңыз!
+            </div>
+        </div>
+    </div>
+    <!-- ── SLIDE 4: SELECT операторы ────────────── -->
+    <div class="slide" data-index="3">
+        <div class="slide-content">
+            <div class="slide-header">
+                <div class="slide-tag anim-fade-up delay-1">DQL</div>
+                <h2 class="slide-title anim-fade-up delay-2"><span class="neon-text-cyan">SELECT</span> операторы</h2>
+            </div>
+            <div class="two-col">
+                <div>
+                    <div class="code-block anim-fade-up delay-2" style="margin-bottom: 16px;">
+                        <div class="code-label">Синтаксис</div>
+                        <span class="kw">SELECT</span> баған1, баған2<br>
+                        <span class="kw">FROM</span> <span class="tbl">кесте_аты</span><br>
+                        [<span class="kw">WHERE</span> шарт]<br>
+                        [<span class="kw">ORDER BY</span> баған <span class="kw">ASC</span><span class="op">|</span><span class="kw">DESC</span>]<br>
+                        [<span class="kw">LIMIT</span> <span class="num">n</span>];
+                    </div>
+                    <div class="code-block anim-fade-up delay-3">
+                        <div class="code-label">Мысал</div>
+                        <span class="cmt">-- Барлық оқушыларды алу</span><br>
+                        <span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">Students</span>;<br><br>
+                        <span class="cmt">-- Жасы 16-дан үлкен оқушылар</span><br>
+                        <span class="kw">SELECT</span> Name, Age<br>
+                        <span class="kw">FROM</span> <span class="tbl">Students</span><br>
+                        <span class="kw">WHERE</span> Age <span class="op">></span> <span class="num">16</span>;<br><br>
+                        <span class="cmt">-- Алфавит бойынша сұрыптау</span><br>
+                        <span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">Students</span><br>
+                        <span class="kw">ORDER BY</span> Name <span class="kw">ASC</span>;
+                    </div>
+                </div>
+                <div>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px;" class="anim-fade-up delay-2">Students кестесі:</p>
+                    <div class="glass-card anim-fade-up delay-3" style="padding: 0; overflow: hidden;">
+                        <table class="sql-table">
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Age</th>
+                                <th>Class_ID</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr><td class="pk">1</td><td>Әлихан</td><td>17</td><td>1</td></tr>
+                            <tr><td class="pk">2</td><td>Аружан</td><td>16</td><td>2</td></tr>
+                            <tr><td class="pk">3</td><td>Диас</td><td>15</td><td>1</td></tr>
+                            <tr><td class="pk">4</td><td>Мадина</td><td>17</td><td>2</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="highlight-box success anim-fade-up delay-4" style="margin-top: 14px;">
+                        <strong style="color: var(--neon-green);">WHERE Age &gt; 16 нәтижесі:</strong><br>
+                        <span style="font-family: var(--font-code); color: var(--neon-green);">Әлихан (17), Мадина (17)</span>
+                    </div>
+                    <div style="margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap;" class="anim-fade-up delay-5">
+                        <span class="badge badge-cyan">* = барлық бағандар</span>
+                        <span class="badge badge-purple">ASC = өсу</span>
+                        <span class="badge badge-purple">DESC = кему</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ── SLIDE 5: WHERE шарты ─────────────────── -->
+    <div class="slide" data-index="4">
+        <div class="slide-content">
+            <div class="slide-header">
+                <div class="slide-tag anim-fade-up delay-1">Шарттар</div>
+                <h2 class="slide-title anim-fade-up delay-2"><span class="neon-text-purple">WHERE</span> шарты және операторлары</h2>
+            </div>
+            <div class="two-col">
+                <div>
+                    <div class="cards-grid" style="gap: 10px;" class="anim-fade-up delay-3">
+                        <div class="glass-card anim-fade-up delay-2">
+                            <h4 style="color: var(--neon-cyan); margin-bottom: 10px; font-size: 0.9rem;">Салыстыру операторлары</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-family: var(--font-code); font-size: 0.82rem;">
+                                <span><span class="op">=</span> &nbsp;тең</span>
+                                <span><span class="op">!=</span> немесе <span class="op"><></span> &nbsp;тең емес</span>
+                                <span><span class="op">></span> &nbsp;үлкен</span>
+                                <span><span class="op"><</span> &nbsp;кіші</span>
+                                <span><span class="op">>=</span> &nbsp;үлкен немесе тең</span>
+                                <span><span class="op"><=</span> &nbsp;кіші немесе тең</span>
+                            </div>
+                        </div>
+                        <div class="glass-card anim-fade-up delay-3">
+                            <h4 style="color: var(--neon-purple); margin-bottom: 10px; font-size: 0.9rem;">Логикалық операторлар</h4>
+                            <ul class="fancy-list" style="gap: 8px;">
+                                <li style="font-size: 0.85rem;">
+                                    <span class="badge badge-purple" style="min-width:50px; justify-content:center;">AND</span>
+                                    <span>Екі шарт та орындалу керек</span>
+                                </li>
+                                <li style="font-size: 0.85rem;">
+                                    <span class="badge badge-purple" style="min-width:50px; justify-content:center;">OR</span>
+                                    <span>Біреуі орындалса жеткілікті</span>
+                                </li>
+                                <li style="font-size: 0.85rem;">
+                                    <span class="badge badge-purple" style="min-width:50px; justify-content:center;">NOT</span>
+                                    <span>Шартты теріске шығару</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="glass-card anim-fade-up delay-4">
+                            <h4 style="color: var(--accent-orange); margin-bottom: 10px; font-size: 0.9rem;">Арнайы операторлар</h4>
+                            <ul class="fancy-list" style="gap: 8px;">
+                                <li style="font-size: 0.85rem;">
+                                    <span class="badge badge-orange">BETWEEN</span>
+                                    <span>Ауқымда: <span class="kw" style="font-family:var(--font-code);">BETWEEN 15 AND 17</span></span>
+                                </li>
+                                <li style="font-size: 0.85rem;">
+                                    <span class="badge badge-orange">IN</span>
+                                    <span>Тізімде: <span class="kw" style="font-family:var(--font-code);">IN (1, 2, 3)</span></span>
+                                </li>
+                                <li style="font-size: 0.85rem;">
+                                    <span class="badge badge-orange">LIKE</span>
+                                    <span>Үлгіге сәйкес: <span class="kw" style="font-family:var(--font-code);">LIKE 'Ә%'</span></span>
+                                </li>
+                                <li style="font-size: 0.85rem;">
+                                    <span class="badge badge-orange">IS NULL</span>
+                                    <span>Бос мән тексеру</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="code-block anim-fade-up delay-3">
+                        <div class="code-label">Мысалдар</div>
+                        <span class="cmt">-- AND оператор</span><br>
+                        <span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">Students</span><br>
+                        <span class="kw">WHERE</span> Age <span class="op">>=</span> <span class="num">16</span> <span class="kw">AND</span> Class_ID <span class="op">=</span> <span class="num">2</span>;<br><br>
+                        <span class="cmt">-- BETWEEN</span><br>
+                        <span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">Students</span><br>
+                        <span class="kw">WHERE</span> Age <span class="kw">BETWEEN</span> <span class="num">15</span> <span class="kw">AND</span> <span class="num">17</span>;<br><br>
+                        <span class="cmt">-- LIKE — 'Ә' әрпінен басталатын</span><br>
+                        <span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">Students</span><br>
+                        <span class="kw">WHERE</span> Name <span class="kw">LIKE</span> <span class="str">'Ә%'</span>;<br><br>
+                        <span class="cmt">-- IN — нақты мәндер тізімі</span><br>
+                        <span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">Students</span><br>
+                        <span class="kw">WHERE</span> Class_ID <span class="kw">IN</span> (<span class="num">1</span>, <span class="num">2</span>);
+                    </div>
+                    <div class="highlight-box anim-fade-up delay-5" style="margin-top: 14px;">
+                        <strong style="color: var(--neon-cyan);">LIKE ішіндегі шаблондар:</strong><br>
+                        <span style="font-family: var(--font-code);">% — кез-келген символдар тізбегі</span><br>
+                        <span style="font-family: var(--font-code);">_ — бір ғана символ орны</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ── SLIDE 6: INSERT, UPDATE, DELETE ────────── -->
+    <div class="slide" data-index="5">
+        <div class="slide-content">
+            <div class="slide-header">
+                <div class="slide-tag anim-fade-up delay-1">DML операторлары</div>
+                <h2 class="slide-title anim-fade-up delay-2"><span class="neon-text-orange">INSERT · UPDATE · DELETE</span></h2>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px;">
+                <!-- INSERT -->
+                <div class="glass-card anim-fade-up delay-2" style="border-color: rgba(0,212,255,0.3);">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom: 16px;">
+                        <span class="badge badge-cyan" style="font-size:0.9rem; padding: 6px 14px;">INSERT</span>
+                        <span style="font-size:0.78rem; color:var(--text-muted);">Жазба қосу</span>
+                    </div>
+                    <div class="code-block" style="font-size: 0.82rem;">
+                        <span class="kw">INSERT INTO</span> <span class="tbl">Students</span><br>
+                        &nbsp;&nbsp;(ID, Name, Age)<br>
+                        <span class="kw">VALUES</span><br>
+                        &nbsp;&nbsp;(<span class="num">5</span>, <span class="str">'Ғалым'</span>, <span class="num">16</span>);
+                    </div>
+                    <div class="highlight-box success" style="margin-top: 12px; font-size: 0.78rem;">
+                        <strong style="color:var(--neon-green);">Ережелер:</strong><br>
+                        • Баған аттарын VALUES алдында жазу керек<br>
+                        • Мәтін мәндерді тырнақшаға алу керек<br>
+                        • Primary Key қайталанбауы керек
+                    </div>
+                </div>
+                <!-- UPDATE -->
+                <div class="glass-card anim-fade-up delay-3" style="border-color: rgba(249,115,22,0.3);">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom: 16px;">
+                        <span class="badge badge-orange" style="font-size:0.9rem; padding: 6px 14px;">UPDATE</span>
+                        <span style="font-size:0.78rem; color:var(--text-muted);">Деректерді жаңарту</span>
+                    </div>
+                    <div class="code-block" style="font-size: 0.82rem;">
+                        <span class="kw">UPDATE</span> <span class="tbl">Students</span><br>
+                        <span class="kw">SET</span><br>
+                        &nbsp;&nbsp;Age <span class="op">=</span> <span class="num">18</span>,<br>
+                        &nbsp;&nbsp;Name <span class="op">=</span> <span class="str">'Серіков'</span><br>
+                        <span class="kw">WHERE</span> ID <span class="op">=</span> <span class="num">1</span>;
+                    </div>
+                    <div class="highlight-box warning" style="margin-top: 12px; font-size: 0.78rem;">
+                        <strong style="color:var(--accent-orange);">⚠ НАЗАР:</strong><br>
+                        WHERE болмаса — барлық жолдар өзгереді! Бұл қауіпті қате.
+                    </div>
+                </div>
+                <!-- DELETE -->
+                <div class="glass-card anim-fade-up delay-4" style="border-color: rgba(239,68,68,0.3);">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom: 16px;">
+                        <span class="badge" style="background:rgba(239,68,68,0.12); color:#f87171; border:1px solid rgba(239,68,68,0.3); font-size:0.9rem; padding: 6px 14px;">DELETE</span>
+                        <span style="font-size:0.78rem; color:var(--text-muted);">Жазбаны жою</span>
+                    </div>
+                    <div class="code-block" style="font-size: 0.82rem;">
+                        <span class="cmt">-- Бір жазбаны жою</span><br>
+                        <span class="kw">DELETE FROM</span> <span class="tbl">Students</span><br>
+                        <span class="kw">WHERE</span> ID <span class="op">=</span> <span class="num">3</span>;<br><br>
+                        <span class="cmt">-- Барлығын тазарту</span><br>
+                        <span class="kw">DELETE FROM</span> <span class="tbl">Students</span>;<br><br>
+                        <span class="cmt">-- немесе жылдам тазарту</span><br>
+                        <span class="kw">TRUNCATE TABLE</span> <span class="tbl">Students</span>;
+                    </div>
+                    <div class="highlight-box" style="margin-top: 12px; font-size: 0.78rem; border-left-color: #f87171; background: rgba(239,68,68,0.05);">
+                        <strong style="color:#f87171;">DELETE vs TRUNCATE:</strong><br>
+                        DELETE — бір-бір жояды (WHERE болады)<br>
+                        TRUNCATE — барлығын жылдам тазартады
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ── SLIDE 7: JOIN операторы ────────────────── -->
+    <div class="slide" data-index="6">
+        <div class="slide-content">
+            <div class="slide-header">
+                <div class="slide-tag anim-fade-up delay-1">Кестелерді біріктіру</div>
+                <h2 class="slide-title anim-fade-up delay-2"><span class="neon-text-cyan">JOIN</span> операторы</h2>
+            </div>
+            <div class="two-col-65">
+                <div>
+                    <div class="cards-grid" style="gap: 10px; margin-bottom: 16px;">
+                        <div class="glass-card anim-fade-up delay-2" style="padding: 16px; border-color: rgba(0,212,255,0.3);">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-weight: 700; color: var(--neon-cyan); font-size:0.9rem;">INNER JOIN</span>
+                                <span class="badge badge-cyan" style="font-size: 0.7rem;">Ең жиі</span>
+                            </div>
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;">Екі кестеде де сәйкес жазбалар болғанда ғана қосады</p>
+                        </div>
+                        <div class="glass-card anim-fade-up delay-3" style="padding: 16px;">
+                            <span style="font-weight: 700; color: var(--neon-purple); font-size:0.9rem;">LEFT JOIN</span>
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;">Сол кестенің барлық жолдарын + оң кестеден сәйкестерін алады</p>
+                        </div>
+                        <div class="glass-card anim-fade-up delay-4" style="padding: 16px;">
+                            <span style="font-weight: 700; color: var(--accent-orange); font-size:0.9rem;">RIGHT JOIN</span>
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;">Оң кестенің барлық жолдарын + сол кестеден сәйкестерін алады</p>
+                        </div>
+                    </div>
+                    <div class="code-block anim-fade-up delay-4">
+                        <div class="code-label">INNER JOIN мысалы</div>
+                        <span class="kw">SELECT</span><br>
+                        &nbsp;&nbsp;<span class="tbl">Students</span>.Name,<br>
+                        &nbsp;&nbsp;<span class="tbl">Grades</span>.Mark<br>
+                        <span class="kw">FROM</span> <span class="tbl">Students</span><br>
+                        <span class="kw">INNER JOIN</span> <span class="tbl">Grades</span><br>
+                        &nbsp;&nbsp;<span class="kw">ON</span> <span class="tbl">Students</span>.ID <span class="op">=</span> <span class="tbl">Grades</span>.Student_ID;<br>
+                    </div>
+                </div>
+                <div>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;" class="anim-fade-up delay-2">JOIN нәтижесі:</p>
+                    <div class="glass-card anim-fade-up delay-3" style="padding: 0; overflow: hidden;">
+                        <table class="sql-table">
+                            <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Mark</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr><td class="result-row">Әлихан</td><td class="result-row">5</td></tr>
+                            <tr><td class="result-row">Аружан</td><td class="result-row">4</td></tr>
+                            <tr><td class="result-row">Диас</td><td class="result-row">5</td></tr>
+                            <tr><td class="result-row">Мадина</td><td class="result-row">3</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="highlight-box anim-fade-up delay-5" style="margin-top: 14px; font-size: 0.82rem;">
+                        <strong style="color: var(--neon-cyan);">JOIN шарты (ON):</strong><br>
+                        Students.ID = Grades.Student_ID<br>
+                        <span style="font-family: var(--font-code);">бастапқы кілт = сыртқы кілт</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ── SLIDE 8: Агрегатты функциялар ─────────── -->
+    <div class="slide" data-index="7">
+        <div class="slide-content">
+            <div class="slide-header">
+                <div class="slide-tag anim-fade-up delay-1">Функциялар</div>
+                <h2 class="slide-title anim-fade-up delay-2">Агрегатты <span class="neon-text-green">функциялар</span></h2>
+            </div>
+            <div class="two-col">
+                <div>
+                    <div class="cards-grid cards-grid-2 anim-fade-up delay-2" style="gap: 10px; margin-bottom: 16px;">
+                        <div class="glass-card" style="padding: 16px; border-color: rgba(0,255,136,0.25);">
+                            <div class="big-number" style="color: var(--neon-green); font-size: 1.6rem; margin-bottom: 6px;">COUNT()</div>
+                            <p style="font-size: 0.8rem; color: var(--text-muted);">Жолдар санын санайды</p>
+                            <div class="code-block" style="padding: 8px 12px; margin-top: 8px; font-size: 0.8rem;">
+                                <span class="kw">SELECT</span> <span class="fn">COUNT</span>(*) <span class="kw">FROM</span> <span class="tbl">Students</span>;
+                            </div>
+                        </div>
+                        <div class="glass-card" style="padding: 16px; border-color: rgba(0,212,255,0.25);">
+                            <div class="big-number" style="color: var(--neon-cyan); font-size: 1.6rem; margin-bottom: 6px;">SUM()</div>
+                            <p style="font-size: 0.8rem; color: var(--text-muted);">Бағандар қосындысы</p>
+                            <div class="code-block" style="padding: 8px 12px; margin-top: 8px; font-size: 0.8rem;">
+                                <span class="kw">SELECT</span> <span class="fn">SUM</span>(Mark) <span class="kw">FROM</span> <span class="tbl">Grades</span>;
+                            </div>
+                        </div>
+                        <div class="glass-card" style="padding: 16px; border-color: rgba(184,85,255,0.25);">
+                            <div class="big-number" style="color: var(--neon-purple); font-size: 1.6rem; margin-bottom: 6px;">AVG()</div>
+                            <p style="font-size: 0.8rem; color: var(--text-muted);">Орташа мән</p>
+                            <div class="code-block" style="padding: 8px 12px; margin-top: 8px; font-size: 0.8rem;">
+                                <span class="kw">SELECT</span> <span class="fn">AVG</span>(Age) <span class="kw">FROM</span> <span class="tbl">Students</span>;
+                            </div>
+                        </div>
+                        <div class="glass-card" style="padding: 16px; border-color: rgba(249,115,22,0.25);">
+                            <div class="big-number" style="color: var(--accent-orange); font-size: 1.1rem; margin-bottom: 6px;">MAX() / MIN()</div>
+                            <p style="font-size: 0.8rem; color: var(--text-muted);">Ең үлкен / кіші мән</p>
+                            <div class="code-block" style="padding: 8px 12px; margin-top: 8px; font-size: 0.8rem;">
+                                <span class="kw">SELECT</span> <span class="fn">MAX</span>(Mark) <span class="kw">FROM</span> <span class="tbl">Grades</span>;
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="code-block anim-fade-up delay-3" style="margin-bottom: 16px;">
+                        <div class="code-label">GROUP BY</div>
+                        <span class="cmt">-- Сынып бойынша орташа баға</span><br>
+                        <span class="kw">SELECT</span><br>
+                        &nbsp;&nbsp;Class_ID,<br>
+                        &nbsp;&nbsp;<span class="fn">AVG</span>(Mark) <span class="kw">AS</span> Орташа_Баға,<br>
+                        &nbsp;&nbsp;<span class="fn">COUNT</span>(*) <span class="kw">AS</span> Оқушылар_Саны<br>
+                        <span class="kw">FROM</span> <span class="tbl">Grades</span><br>
+                        <span class="kw">GROUP BY</span> Class_ID<br>
+                        <span class="kw">HAVING</span> <span class="fn">AVG</span>(Mark) <span class="op">></span> <span class="num">4</span>;
+                    </div>
+                    <div class="highlight-box anim-fade-up delay-4">
+                        <strong style="color: var(--neon-cyan);">GROUP BY vs HAVING:</strong><br>
+                        <span style="font-family: var(--font-code);">WHERE</span> — жолдарды топтауға дейін сүзеді<br>
+                        <span style="font-family: var(--font-code);">HAVING</span> — топтарды топтаудан кейін сүзеді
+                    </div>
+                    <div class="glass-card anim-fade-up delay-5" style="padding: 0; overflow: hidden; margin-top: 14px;">
+                        <table class="sql-table">
+                            <thead><tr><th>Class_ID</th><th>Орташа_Баға</th><th>Оқушылар_Саны</th></tr></thead>
+                            <tbody>
+                            <tr><td>1</td><td class="result-row">5.0</td><td>2</td></tr>
+                            <tr><td>2</td><td style="color:#f87171;">3.5</td><td>2</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ── SLIDE 9: CREATE TABLE / DDL ───────────── -->
+    <div class="slide" data-index="8">
+        <div class="slide-content">
+            <div class="slide-header">
+                <div class="slide-tag anim-fade-up delay-1">DDL — Кесте жасау</div>
+                <h2 class="slide-title anim-fade-up delay-2"><span class="neon-text-orange">CREATE TABLE</span> және деректер типтері</h2>
+            </div>
+            <div class="two-col">
+                <div>
+                    <div class="code-block anim-fade-up delay-2">
+                        <div class="code-label">CREATE TABLE</div>
+                        <span class="kw">CREATE TABLE</span> <span class="tbl">Students</span> (<br>
+                        &nbsp;&nbsp;ID &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="fn">INT</span> <span class="kw">PRIMARY KEY</span>,<br>
+                        &nbsp;&nbsp;Name &nbsp;&nbsp;&nbsp;<span class="fn">VARCHAR</span>(<span class="num">100</span>) <span class="kw">NOT NULL</span>,<br>
+                        &nbsp;&nbsp;Age &nbsp;&nbsp;&nbsp;&nbsp;<span class="fn">INT</span> <span class="kw">CHECK</span>(Age <span class="op">>=</span> <span class="num">6</span>),<br>
+                        &nbsp;&nbsp;Email &nbsp;&nbsp;<span class="fn">VARCHAR</span>(<span class="num">150</span>) <span class="kw">UNIQUE</span>,<br>
+                        &nbsp;&nbsp;Class_ID <span class="fn">INT</span> <span class="kw">DEFAULT</span> <span class="num">1</span>,<br>
+                        &nbsp;&nbsp;<span class="kw">FOREIGN KEY</span> (Class_ID)<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">REFERENCES</span> <span class="tbl">Classes</span>(ID)<br>
+                        );
+                    </div>
+                    <div class="code-block anim-fade-up delay-4" style="margin-top: 14px;">
+                        <div class="code-label">Кестені жою / өзгерту</div>
+                        <span class="kw">DROP TABLE</span> <span class="tbl">Students</span>;<br>
+                        <span class="kw">ALTER TABLE</span> <span class="tbl">Students</span> <span class="kw">ADD</span> Phone <span class="fn">VARCHAR</span>(<span class="num">20</span>);<br>
+                        <span class="kw">ALTER TABLE</span> <span class="tbl">Students</span> <span class="kw">DROP COLUMN</span> Phone;
+                    </div>
+                </div>
+                <div>
+                    <div class="glass-card anim-fade-up delay-3">
+                        <h4 style="color: var(--neon-cyan); margin-bottom: 14px;">Деректер типтері:</h4>
+                        <ul class="fancy-list" style="gap: 10px;">
+                            <li>
+                                <span class="badge badge-cyan" style="min-width:80px; justify-content:center; font-size:0.8rem;">INT</span>
+                                <span style="font-size:0.85rem;">Бүтін сандар (1, 2, 100, -5)</span>
+                            </li>
+                            <li>
+                                <span class="badge badge-purple" style="min-width:80px; justify-content:center; font-size:0.8rem;">VARCHAR(n)</span>
+                                <span style="font-size:0.85rem;">Айнымалы ұзындықты мәтін</span>
+                            </li>
+                            <li>
+                                <span class="badge badge-green" style="min-width:80px; justify-content:center; font-size:0.8rem;">CHAR(n)</span>
+                                <span style="font-size:0.85rem;">Тіркелген ұзындықты мәтін</span>
+                            </li>
+                            <li>
+                                <span class="badge badge-orange" style="min-width:80px; justify-content:center; font-size:0.8rem;">FLOAT</span>
+                                <span style="font-size:0.85rem;">Бөлшек сандар (3.14, 2.5)</span>
+                            </li>
+                            <li>
+                                <span class="badge badge-cyan" style="min-width:80px; justify-content:center; font-size:0.8rem;">DATE</span>
+                                <span style="font-size:0.85rem;">Күн (YYYY-MM-DD)</span>
+                            </li>
+                            <li>
+                                <span class="badge badge-purple" style="min-width:80px; justify-content:center; font-size:0.8rem;">BOOLEAN</span>
+                                <span style="font-size:0.85rem;">Логикалық мән (TRUE/FALSE)</span>
+                            </li>
+                        </ul>
+                        <div class="divider"></div>
+                        <h4 style="color: var(--accent-orange); margin-bottom: 10px; font-size:0.9rem;">Шектеулер (Constraints):</h4>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            <span class="badge badge-orange">PRIMARY KEY</span>
+                            <span class="badge badge-orange">FOREIGN KEY</span>
+                            <span class="badge badge-orange">NOT NULL</span>
+                            <span class="badge badge-orange">UNIQUE</span>
+                            <span class="badge badge-orange">CHECK</span>
+                            <span class="badge badge-orange">DEFAULT</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ── SLIDE 10: ҰБТ Тест Сұрақтары ─────────── -->
+    <div class="slide" data-index="9">
+        <div class="slide-content">
+            <div class="slide-header">
+                <div class="slide-tag anim-fade-up delay-1">ҰБТ Дайындық</div>
+                <h2 class="slide-title anim-fade-up delay-2">Жиі кездесетін <span class="neon-text-cyan">ҰБТ</span> сұрақтары</h2>
+            </div>
+            <div class="cards-grid cards-grid-2 anim-fade-up delay-3" style="gap: 14px;">
+                <div class="glass-card" style="border-color: rgba(0,212,255,0.3);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <span class="badge badge-cyan">Сұрақ 1</span>
+                    </div>
+                    <p style="font-size: 0.88rem; color: var(--text); font-weight: 600; margin-bottom: 10px;">SQL тілінде деректерді таңдауға қолданылатын оператор?</p>
+                    <div class="code-block" style="padding: 10px 14px; font-size: 0.82rem; margin-bottom: 10px;"><span class="kw">SELECT</span></div>
+                    <p style="font-size: 0.78rem; color: var(--neon-green);">✓ SELECT — деректерді сұрату (Data Query Language)</p>
+                </div>
+                <div class="glass-card" style="border-color: rgba(184,85,255,0.3);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <span class="badge badge-purple">Сұрақ 2</span>
+                    </div>
+                    <p style="font-size: 0.88rem; color: var(--text); font-weight: 600; margin-bottom: 10px;">WHERE шартын топтаудан кейін қолдану үшін не пайдаланылады?</p>
+                    <div class="code-block" style="padding: 10px 14px; font-size: 0.82rem; margin-bottom: 10px;"><span class="kw">HAVING</span></div>
+                    <p style="font-size: 0.78rem; color: var(--neon-green);">✓ HAVING — GROUP BY-дан кейін топтарды сүзу үшін</p>
+                </div>
+                <div class="glass-card" style="border-color: rgba(249,115,22,0.3);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <span class="badge badge-orange">Сұрақ 3</span>
+                    </div>
+                    <p style="font-size: 0.88rem; color: var(--text); font-weight: 600; margin-bottom: 10px;">Екі кестені олардың байланысты өрістері арқылы біріктіру:</p>
+                    <div class="code-block" style="padding: 10px 14px; font-size: 0.82rem; margin-bottom: 10px;"><span class="kw">JOIN ... ON ...</span></div>
+                    <p style="font-size: 0.78rem; color: var(--neon-green);">✓ JOIN — кестелерді байланыстыру (FK = PK шарты арқылы)</p>
+                </div>
+                <div class="glass-card" style="border-color: rgba(0,255,136,0.3);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <span class="badge badge-green">Сұрақ 4</span>
+                    </div>
+                    <p style="font-size: 0.88rem; color: var(--text); font-weight: 600; margin-bottom: 10px;">Жолдар санын есептейтін агрегатты функция:</p>
+                    <div class="code-block" style="padding: 10px 14px; font-size: 0.82rem; margin-bottom: 10px;"><span class="fn">COUNT(*)</span></div>
+                    <p style="font-size: 0.78rem; color: var(--neon-green);">✓ COUNT() — санау, SUM() — қосу, AVG() — орташа</p>
+                </div>
+            </div>
+            <div class="highlight-box anim-fade-up delay-5" style="margin-top: 16px;">
+                <strong style="color: var(--neon-cyan);">SELECT ҚАТАРЫНЫҢ РЕТІ:</strong>
+                <span style="font-family: var(--font-code); font-size: 0.85rem;">
+                    SELECT → FROM → WHERE → GROUP BY → HAVING → ORDER BY → LIMIT
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ──── END SLIDESHOW ──── -->
+<!-- Navigation -->
+<div id="nav">
+    <button class="nav-btn" id="prev-btn" onclick="changeSlide(-1)" disabled>&#8592;</button>
+    <div class="nav-dots" id="nav-dots"></div>
+    <button class="nav-btn" id="next-btn" onclick="changeSlide(1)">&#8594;</button>
+</div>
+<!-- Keyboard hint -->
+<div id="kbd-hint">
+    <kbd class="kbd">←</kbd> <kbd class="kbd">→</kbd> навигация &nbsp;|&nbsp; <kbd class="kbd">F</kbd> толық экран
+</div>
+<script>
+    // =============================================
+    // PARTICLE BACKGROUND
+    // =============================================
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+    const particles = [];
+    const NUM = 60;
+    function resize() {
+        W = canvas.width = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+    class Particle {
+        constructor() { this.reset(); }
+        reset() {
+            this.x = Math.random() * W;
+            this.y = Math.random() * H;
+            this.vx = (Math.random() - 0.5) * 0.4;
+            this.vy = (Math.random() - 0.5) * 0.4;
+            this.r = Math.random() * 1.5 + 0.3;
+            this.a = Math.random() * 0.4 + 0.05;
+            this.color = Math.random() > 0.5 ? '0, 212, 255' : '184, 85, 255';
+        }
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            if (this.x < 0 || this.x > W || this.y < 0 || this.y > H) this.reset();
+        }
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${this.color}, ${this.a})`;
+            ctx.fill();
+        }
+    }
+    for (let i = 0; i < NUM; i++) particles.push(new Particle());
+    function drawConnections() {
+        for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+                const dx = particles[i].x - particles[j].x;
+                const dy = particles[i].y - particles[j].y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 120) {
+                    ctx.beginPath();
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.strokeStyle = `rgba(67, 56, 202, ${0.15 * (1 - dist / 120)})`;
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+                }
+            }
+        }
+    }
+    function animate() {
+        ctx.clearRect(0, 0, W, H);
+        particles.forEach(p => { p.update(); p.draw(); });
+        drawConnections();
+        requestAnimationFrame(animate);
+    }
+    animate();
+    // =============================================
+    // SLIDESHOW LOGIC
+    // =============================================
+    const slides = document.querySelectorAll('.slide');
+    const total = slides.length;
+    let current = 0;
+    let isAnimating = false;
+    // Update counter display
+    document.getElementById('tot').textContent = total;
+    // Build dots
+    const dotsEl = document.getElementById('nav-dots');
+    slides.forEach((_, i) => {
+        const dot = document.createElement('div');
+        dot.className = 'dot' + (i === 0 ? ' active' : '');
+        dot.addEventListener('click', () => goToSlide(i));
+        dotsEl.appendChild(dot);
+    });
+    function updateUI() {
+        // Counter
+        document.getElementById('cur').textContent = current + 1;
+        // Progress
+        document.getElementById('progress').style.width = ((current + 1) / total * 100) + '%';
+        // Dots
+        document.querySelectorAll('.dot').forEach((d, i) => {
+            d.classList.toggle('active', i === current);
+        });
+        // Nav buttons
+        document.getElementById('prev-btn').disabled = current === 0;
+        document.getElementById('next-btn').disabled = current === total - 1;
+    }
+    function goToSlide(target, direction) {
+        if (isAnimating || target === current || target < 0 || target >= total) return;
+        isAnimating = true;
+        const currentSlide = slides[current];
+        const nextSlide = slides[target];
+        const dir = direction || (target > current ? 1 : -1);
+        // Set starting position for next slide
+        nextSlide.style.transition = 'none';
+        nextSlide.style.transform = `translateX(${dir * 100}%)`;
+        nextSlide.style.opacity = '0';
+        nextSlide.classList.add('active');
+        // Trigger animation
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const dur = '0.55s';
+                const ease = 'cubic-bezier(0.77, 0, 0.18, 1)';
+                currentSlide.style.transition = `transform ${dur} ${ease}, opacity ${dur} ${ease}`;
+                currentSlide.style.transform = `translateX(${-dir * 100}%)`;
+                currentSlide.style.opacity = '0';
+                nextSlide.style.transition = `transform ${dur} ${ease}, opacity ${dur} ${ease}`;
+                nextSlide.style.transform = 'translateX(0)';
+                nextSlide.style.opacity = '1';
+                setTimeout(() => {
+                    currentSlide.classList.remove('active');
+                    currentSlide.style.transform = '';
+                    currentSlide.style.opacity = '';
+                    currentSlide.style.transition = '';
+                    nextSlide.style.transition = '';
+                    nextSlide.style.transform = '';
+                    nextSlide.style.opacity = '';
+                    nextSlide.classList.add('active');
+                    nextSlide.style.pointerEvents = 'all';
+                    current = target;
+                    updateUI();
+                    isAnimating = false;
+                }, 580);
+            });
+        });
+    }
+    function changeSlide(dir) {
+        goToSlide(current + dir, dir);
+    }
+    // =============================================
+    // KEYBOARD NAVIGATION
+    // =============================================
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === ' ') {
+            e.preventDefault();
+            changeSlide(1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            changeSlide(-1);
+        } else if (e.key === 'f' || e.key === 'F') {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
+    });
+    // Touch/swipe support
+    let touchStartX = 0;
+    document.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
+    document.addEventListener('touchend', (e) => {
+        const diff = touchStartX - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 50) changeSlide(diff > 0 ? 1 : -1);
+    }, { passive: true });
+    updateUI();
+</script>
+</body>
+</html>
+
+
+
